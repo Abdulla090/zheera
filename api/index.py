@@ -30,9 +30,11 @@ logging.basicConfig(
 logger = logging.getLogger("zheera")
 
 # ── Config ────────────────────────────────────────────────────────────────────
-BOT_TOKEN: str = os.environ.get("BOT_TOKEN", "8525301353:AAH5LjWolYzJUBO3K7r4181OIHhs_UoDzXE")
-WEBHOOK_URL: str = os.environ.get("WEBHOOK_URL", "").rstrip("/")
+BOT_TOKEN: str  = os.environ.get("BOT_TOKEN", "8525301353:AAH5LjWolYzJUBO3K7r4181OIHhs_UoDzXE")
+# Hardcoded production URL as fallback — always works even on cold starts
+WEBHOOK_URL: str = os.environ.get("WEBHOOK_URL", "https://zheera.vercel.app").rstrip("/")
 WEBHOOK_PATH: str = f"/webhook/{BOT_TOKEN}"
+FULL_WEBHOOK_URL: str = f"{WEBHOOK_URL}{WEBHOOK_PATH}"
 
 if not BOT_TOKEN:
     raise RuntimeError("BOT_TOKEN environment variable is not set!")
@@ -51,19 +53,13 @@ app = FastAPI(
 # ── Webhook Registration Helper ───────────────────────────────────────────────
 async def register_webhook() -> None:
     """
-    Called once on startup.
-    Sets the Telegram webhook to <WEBHOOK_URL>/webhook/<BOT_TOKEN>.
-    Skips if WEBHOOK_URL is not configured (e.g. during local dev).
+    Registers the Telegram webhook pointing to this Vercel deployment.
+    Always runs — FULL_WEBHOOK_URL has a hardcoded fallback.
     """
-    if not WEBHOOK_URL:
-        logger.warning("WEBHOOK_URL not set — skipping webhook registration.")
-        return
-
-    full_url = f"{WEBHOOK_URL}{WEBHOOK_PATH}"
     try:
         await ptb_app.initialize()
         await ptb_app.bot.set_webhook(
-            url=full_url,
+            url=FULL_WEBHOOK_URL,
             allowed_updates=Update.ALL_TYPES,
             drop_pending_updates=True,
         )
@@ -110,9 +106,9 @@ async def health():
 @app.post(WEBHOOK_PATH)
 async def telegram_webhook(request: Request) -> Response:
     """
-    Telegram sends POST requests here for every update.
-    We parse the JSON body into a PTB Update object and
-    process it through the application's dispatcher.
+    Telegram sends a POST for every message/update.
+    Parse it, hand it to PTB, and immediately return 200 so Telegram
+    doesn't time out and retry.
     """
     try:
         body = await request.json()
@@ -122,13 +118,13 @@ async def telegram_webhook(request: Request) -> Response:
 
     try:
         update = Update.de_json(data=body, bot=ptb_app.bot)
-        # Process the update asynchronously without blocking the HTTP response
-        asyncio.ensure_future(ptb_app.process_update(update))
+        # Run in background — don't await so we return 200 immediately
+        asyncio.create_task(ptb_app.process_update(update))
     except Exception as exc:
         logger.error("Error processing update: %s", exc)
-        raise HTTPException(status_code=500, detail="Update processing error")
+        # Still return 200 so Telegram doesn't retry endlessly
+        return Response(content="error", status_code=200)
 
-    # Always return 200 quickly so Telegram doesn't retry
     return Response(content="ok", status_code=200)
 
 
@@ -136,17 +132,15 @@ async def telegram_webhook(request: Request) -> Response:
 async def manual_set_webhook():
     """
     Manual trigger to (re-)register the webhook.
-    Useful after a new deployment if auto-registration didn't fire.
+    Visit this URL after any new deployment to ensure the bot is connected.
     """
-    if not WEBHOOK_URL:
-        raise HTTPException(status_code=400, detail="WEBHOOK_URL env var not set.")
-
     await register_webhook()
     info = await ptb_app.bot.get_webhook_info()
     return {
-        "message": "Webhook registered successfully!",
+        "message": "✅ Webhook registered successfully! Open Telegram and chat with ZHEERA 🌟",
         "webhook_url": info.url,
         "pending_updates": info.pending_update_count,
+        "target": FULL_WEBHOOK_URL,
     }
 
 
