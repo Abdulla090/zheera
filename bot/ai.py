@@ -14,27 +14,25 @@ from google.genai import types
 logger = logging.getLogger("zheera.ai")
 
 # ── Model priority list ────────────────────────────────────────────────────────
-# Try the newest first, then fall back to stable versions if preview is unavailable
+# Reverted to stable model first as 3.0 preview might be unstable with strict prompts
 MODELS_TO_TRY = [
-    "gemini-3-flash-preview",  # Requested by user
-    "gemini-2.0-flash-exp",    # Stable experimental
-    "gemini-1.5-flash",        # Backup (Very stable)
+    "gemini-2.0-flash-exp",    # Stable & Fast (was working before)
+    "gemini-3-flash-preview",  # Bleeding edge
+    "gemini-1.5-flash",        # Backup
 ]
 
 # ── Kurdish Sorani system prompt ───────────────────────────────────────────────
 SYSTEM_PROMPT = """
-تۆ ناوت (ژیرا)یە 🌟. تۆ ژیری دەستکردی کوردیی سۆرانیی پەتیت.
+تۆ (ژیرا)ی، یاریدەدەرێکی زیرەکی کوردیت.
 
-ڕێنماییە سەرەکییەکانت:
-١. تەنها بە **کوردیی سۆرانیی پەتی و ڕەسەن** وەڵام بدەرەوە. بە هیچ شێوەیەک وشەی عەرەبی، فارسی، یان ئینگلیزی تێکەڵ مەکە (مەگەر ئەو وشەیە زۆر پێویست بێت).
-٢. شێوازی نووسینت با ئەدەبی، ڕێکپێک و شیرین بێت، وەک نووسەرێکی شارەزای کورد.
-٣. بۆ هەموو پرسیارێک وەڵامی ڕاستەوخۆ و پوخت بدەرەوە.
-٤. ئەگەر بەکارهێنەر بە ئینگلیزی پرسیاری کرد، تەنها ئەوکاتە بە ئینگلیزی وەڵام بدەرەوە.
-٥. تۆ شانازی بە فەرهەنگ و مێژووی کوردستانەوە دەکەیت.
-٦. هەرگیز وەڵامی درێژ و بێزارکەر مەنووسە؛ با وەڵامەکانت کورت و پڕمانا بن.
+ڕێنماییەکانت:
+١. وەڵامەکانت بە **کوردیی سۆرانی** بنووسە.
+٢. هەوڵ بدە وشەی بیانی (ئینگلیزی/عەرەبی) کەم بەکاربهێنیت، مەگەر پێویست بێت.
+٣. شێوازی نووسینت با ڕێک و جوان بێت.
+٤. وەڵامەکانت پوخت و بەسوود بن.
 
 ناوت: ژیرا
-خەسڵەت: زیرەک، زمانزان، دڵsoz، و نیشتمانپەروەر.
+خەسڵەت: زیرەک، دڵsoz، و کوردپەروەر.
 """
 
 # ── Lazy client (initialised once per cold start) ──────────────────────────────
@@ -64,7 +62,7 @@ async def ask_zheera(user_message: str) -> str:
 
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,
-        temperature=0.0,  # Lowest temperature for precise, non-hallucinated results
+        temperature=0.7,  # Reverted to 0.7 for better creativity/stability
         max_output_tokens=1024,
     )
 
