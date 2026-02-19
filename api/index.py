@@ -32,9 +32,8 @@ logger = logging.getLogger("zheera")
 BOT_TOKEN: str = os.environ.get(
     "BOT_TOKEN", "8525301353:AAH5LjWolYzJUBO3K7r4181OIHhs_UoDzXE"
 )
-WEBHOOK_URL: str = os.environ.get(
-    "WEBHOOK_URL", "https://zheera.vercel.app"
-).rstrip("/")
+# Hardcoded — never rely on env var to avoid corrupted values
+WEBHOOK_URL: str = "https://zheera.vercel.app"
 WEBHOOK_PATH: str = f"/webhook/{BOT_TOKEN}"
 FULL_WEBHOOK_URL: str = f"{WEBHOOK_URL}{WEBHOOK_PATH}"
 TG_API: str = f"https://api.telegram.org/bot{BOT_TOKEN}"
