@@ -58,6 +58,9 @@ def build_settings_keyboard(user_id: int) -> InlineKeyboardMarkup:
     # Model selection buttons
     rows.append([InlineKeyboardButton("── 🤖 مۆدێل هەڵبژێرە ──", callback_data="noop")])
     for model_id, label in AVAILABLE_MODELS.items():
+        if model_id == "gemini-3-flash-preview":
+            label = "🔥 Gemini 3 Flash (Preview)"
+        
         check = " ✅" if model_id == current_model else ""
         rows.append([InlineKeyboardButton(
             f"{label}{check}",
