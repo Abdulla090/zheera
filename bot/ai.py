@@ -14,8 +14,12 @@ from google.genai import types
 logger = logging.getLogger("zheera.ai")
 
 # ── Model priority list ────────────────────────────────────────────────────────
-PRIMARY_MODEL  = "gemini-3-flash-preview"
-FALLBACK_MODEL = "gemini-2.5-flash"
+# Try the newest first, then fall back to stable versions if preview is unavailable
+MODELS_TO_TRY = [
+    "gemini-3-flash-preview",  # Requested by user
+    "gemini-2.0-flash-exp",    # Stable experimental
+    "gemini-1.5-flash",        # Backup (Very stable)
+]
 
 # ── Kurdish Sorani system prompt ───────────────────────────────────────────────
 SYSTEM_PROMPT = """
@@ -41,8 +45,10 @@ def _get_client() -> genai.Client:
     global _client
     if _client is None:
         api_key = os.environ.get("GEMINI_API_KEY", "")
+        # Fallback if env var is missing/empty
         if not api_key:
-            raise RuntimeError("GEMINI_API_KEY environment variable is not set!")
+            logger.error("❌ GEMINI_API_KEY is missing!")
+            return None
         _client = genai.Client(api_key=api_key)
     return _client
 
@@ -50,16 +56,21 @@ def _get_client() -> genai.Client:
 async def ask_zheera(user_message: str) -> str:
     """
     Send a message to Gemini and return the response text.
-    Tries PRIMARY_MODEL first; if it fails, falls back to FALLBACK_MODEL.
+    Iterates through MODELS_TO_TRY until one succeeds.
     """
     client = _get_client()
+    if not client:
+        return "⚠️ کێشەیەک لە پەیوەندی بە ژیریی دەستکردەوە هەیە (API Key Missing)."
+
     config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,
         temperature=0.0,  # Lowest temperature for precise, non-hallucinated results
         max_output_tokens=1024,
     )
 
-    for model_name in (PRIMARY_MODEL, FALLBACK_MODEL):
+    last_error = None
+
+    for model_name in MODELS_TO_TRY:
         try:
             logger.info("🤖 Sending to model: %s", model_name)
             response = client.models.generate_content(
@@ -67,23 +78,27 @@ async def ask_zheera(user_message: str) -> str:
                 contents=user_message,
                 config=config,
             )
-            text = response.text or "ببورە، وەڵامم نەبوو. تکایە دووبارە بکەرەوە. 🙏"
+            text = response.text
+            if not text:
+                logger.warning("⚠️ Model %s returned empty text.", model_name)
+                continue
+
             logger.info("✅ Response from %s: %s chars", model_name, len(text))
             return text
 
         except Exception as exc:
             logger.warning(
-                "⚠️  Model %s failed: %s — %s",
+                "⚠️ Model %s failed: %s — %s",
                 model_name,
                 type(exc).__name__,
                 exc,
             )
-            if model_name == FALLBACK_MODEL:
-                # Both models failed
-                logger.error("❌ All models failed.")
-                return (
-                    "😔 ببورە، ئێستا کێشەی تەکنیکی هەیە.\n"
-                    "تکایە چەند خولەکێک چاوەڕێ بکە و دووبارە هەوڵ بدە."
-                )
-            logger.info("🔄 Falling back to %s ...", FALLBACK_MODEL)
+            last_error = exc
             continue
+
+    # If all models failed
+    logger.error("❌ All models failed. Last error: %s", last_error)
+    return (
+        "😔 ببورە، ئێستا کێشەی تەکنیکی هەیە.\n"
+        "تکایە چەند خولەکێک چاوەڕێ بکە و دووبارە هەوڵ بدە."
+    )
