@@ -106,8 +106,15 @@ BUTTON_MAP = {
 
 # ── AI message handler ─────────────────────────────────────────────────────────
 
+THINKING_FRAMES = [
+    "🧠 ژیرا بیر دەکاتەوە",
+    "🧠 ژیرا بیر دەکاتەوە.",
+    "🧠 ژیرا بیر دەکاتەوە..",
+    "🧠 ژیرا بیر دەکاتەوە...",
+]
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Route all free-text messages through Gemini AI with typing indicator."""
+    """Route all free-text messages through Gemini AI with thinking animation."""
     text = (update.message.text or "").strip()
 
     # Handle keyboard buttons
@@ -115,12 +122,33 @@ async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await BUTTON_MAP[text](update, context)
         return
 
-    # Show typing action while AI thinks
-    await update.message.chat.send_action("typing")
+    # Send thinking animation
+    thinking_msg = await update.message.reply_text(THINKING_FRAMES[0])
 
-    logger.info("📨 User message: %s", text[:80])
-    response = await ask_zheera(text)
-    await update.message.reply_text(response)
+    # Animate the dots while AI processes
+    import asyncio
+    ai_task = asyncio.create_task(ask_zheera(text))
+
+    # Show animation frames while waiting
+    frame_idx = 1
+    while not ai_task.done():
+        await asyncio.sleep(0.8)
+        if not ai_task.done():
+            try:
+                await thinking_msg.edit_text(THINKING_FRAMES[frame_idx % len(THINKING_FRAMES)])
+                frame_idx += 1
+            except Exception:
+                pass  # Ignore edit errors (e.g., same text)
+
+    response = await ai_task
+    logger.info("📨 User: %s | Response: %s chars", text[:80], len(response))
+
+    # Replace thinking message with actual response
+    try:
+        await thinking_msg.edit_text(response)
+    except Exception:
+        # If edit fails (e.g., message too old), send new message
+        await update.message.reply_text(response)
 
 
 # ── Application builder ────────────────────────────────────────────────────────

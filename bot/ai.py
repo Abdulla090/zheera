@@ -60,16 +60,23 @@ async def list_available_models() -> str:
         return "⚠️ API Key missing."
 
     try:
-        # Paginator for listing models
         model_list = []
-        for m in client.models.list(config={"page_size": 50}):
-            if "generateContent" in m.supported_generation_methods:
-                model_list.append(f"`{m.name}` ({m.display_name})")
-        
+        for m in client.models.list(config={"page_size": 100}):
+            name = m.name or ""
+            display = m.display_name or ""
+            # Only show gemini models (skip embedding, etc.)
+            if "gemini" in name.lower():
+                model_list.append(f"• `{name}` — {display}")
+
         if not model_list:
-            return "⚠️ No models found with generateContent capability."
-            
-        return "📋 **Available Gemini Models:**\n\n" + "\n".join(model_list)
+            return "⚠️ No Gemini models found."
+
+        # Split into chunks if too long for Telegram (4096 char limit)
+        header = "📋 **Available Gemini Models:**\n\n"
+        result = header + "\n".join(model_list)
+        if len(result) > 4000:
+            result = header + "\n".join(model_list[:30]) + f"\n\n... و {len(model_list) - 30} مۆدێلی دیکە"
+        return result
     except Exception as e:
         logger.error("Failed to list models: %s", e)
         return f"⚠️ Error listing models: {e}"
