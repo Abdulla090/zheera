@@ -49,7 +49,8 @@ def get_user_history(user_id: int) -> list:
 def append_to_history(user_id: int, role: str, text: str) -> None:
     """Add a message to history and keep it within limits."""
     history = get_user_history(user_id)
-    history.append({"role": role, "parts": [text]})
+    # Correct format for google-genai SDK: parts is a list of dicts with text
+    history.append({"role": role, "parts": [{"text": text}]})
     
     # Keep last 30 messages to avoid indefinite growth
     if len(history) > 30:
@@ -145,16 +146,27 @@ async def ask_zheera(user_message: str, user_id: int = 0) -> str:
         else:
             thinking_config = types.ThinkingConfig(thinking_budget=0)   # Off
 
-    config = types.GenerateContentConfig(
+    base_config = types.GenerateContentConfig(
         system_instruction=SYSTEM_PROMPT,
         temperature=0.7,
         max_output_tokens=1024,
-        thinking_config=thinking_config,
     )
+    
+    # Config with thinking
+    active_config = base_config
+    if thinking_config:
+        active_config = types.GenerateContentConfig(
+            system_instruction=SYSTEM_PROMPT,
+            temperature=0.7,
+            max_output_tokens=1024,
+            thinking_config=thinking_config,
+        )
 
     # Prepare chat contents: History + Current Message
     history = get_user_history(user_id).copy()
-    current_msg_obj = {"role": "user", "parts": [user_message]}
+    current_msg_obj = {"role": "user", "parts": [{"text": user_message}]}
+    
+    # Attempt 1: Full history
     contents = history + [current_msg_obj]
 
     # Try selected model first, then fallback
@@ -162,6 +174,7 @@ async def ask_zheera(user_message: str, user_id: int = 0) -> str:
     models_to_try = [model_name, fallback]
 
     last_error = None
+    
     for m in models_to_try:
         try:
             logger.info("🤖 [user=%s] model=%s thinking=%s history_len=%d", 
@@ -170,7 +183,7 @@ async def ask_zheera(user_message: str, user_id: int = 0) -> str:
             response = client.models.generate_content(
                 model=m,
                 contents=contents,
-                config=config,
+                config=active_config,
             )
             text = response.text
             if not text:
@@ -185,15 +198,49 @@ async def ask_zheera(user_message: str, user_id: int = 0) -> str:
             return text
 
         except Exception as exc:
-            logger.warning("⚠️ Model %s failed: %s — %s", m, type(exc).__name__, exc)
+            logger.warning("⚠️ Model %s failed (Attempt 1): %s — %s", m, type(exc).__name__, exc)
             last_error = exc
-            # If thinking config caused the error, retry without it
-            if thinking_config and m == model_name:
-                config = types.GenerateContentConfig(
-                    system_instruction=SYSTEM_PROMPT,
-                    temperature=0.7,
-                    max_output_tokens=1024,
+            
+            # ATTEMPT 2: Retry WITHOUT history (maybe history is corrupt/too long)
+            # This is critical to prevent permanent breakage for a user
+            try:
+                logger.info("🔄 Retrying %s with NO HISTORY...", m)
+                response = client.models.generate_content(
+                    model=m,
+                    contents=[current_msg_obj], # Just current message
+                    config=active_config,
                 )
+                text = response.text
+                if text:
+                    # If this worked, our history was bad. Clear it.
+                    _user_history[user_id] = [] 
+                    append_to_history(user_id, "user", user_message)
+                    append_to_history(user_id, "model", text)
+                    logger.info("✅ Recovered %s with empty history.", m)
+                    return text
+            except Exception as exc2:
+                logger.warning("⚠️ Model %s failed (Attempt 2 - No History): %s", m, exc2)
+            
+            # ATTEMPT 3: Retry with NO thinking config (if enabled)
+            # Some models don't support it, or specific values
+            if thinking_config:
+                try:
+                    logger.info("🔄 Retrying %s with NO THINKING...", m)
+                    response = client.models.generate_content(
+                        model=m,
+                        contents=[current_msg_obj],
+                        config=base_config, # Use config without thinking
+                    )
+                    text = response.text
+                    if text:
+                        _user_history[user_id] = []
+                        append_to_history(user_id, "user", user_message)
+                        append_to_history(user_id, "model", text)
+                        logger.info("✅ Recovered %s with no thinking/history.", m)
+                        return text
+                except Exception as exc3:
+                     logger.warning("⚠️ Model %s failed (Attempt 3 - No Thinking): %s", m, exc3)
+
             continue
 
     logger.error("❌ All models failed. Last error: %s", last_error)
