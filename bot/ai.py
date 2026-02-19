@@ -14,11 +14,10 @@ from google.genai import types
 logger = logging.getLogger("zheera.ai")
 
 # ── Model priority list ────────────────────────────────────────────────────────
-# Reverted to stable model first as 3.0 preview might be unstable with strict prompts
+# Using the latest stable Generative AI model available (Gemini 2.5 Flash - GA June 2025)
 MODELS_TO_TRY = [
-    "gemini-2.0-flash-exp",    # Stable & Fast (was working before)
-    "gemini-3-flash-preview",  # Bleeding edge
-    "gemini-1.5-flash",        # Backup
+    "gemini-2.5-flash",        # Latest stable release
+    "gemini-2.0-flash-exp",    # Fallback only
 ]
 
 # ── Kurdish Sorani system prompt ───────────────────────────────────────────────
