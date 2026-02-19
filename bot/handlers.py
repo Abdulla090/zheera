@@ -19,19 +19,19 @@ logger = logging.getLogger("zheera.handlers")
 
 # ── Static quick responses ─────────────────────────────────────────────────────
 FACTS_KURDISH = [
-    "🏔️ کوردستان ناوچەیەکی شکۆداری چیاییە لە ڕۆژهەڵاتی ناوین.",
-    "🎵 کوردەکان موسیقا و هونەری فولکلۆری بەئەندازەی زۆر بەئارام دەگرن.",
-    "🌿 زمانی کوردی یەکێکە لە کۆنترین زمانەکانی دنیایە.",
-    "🦅 هەڵۆی سیمرغ ئەلامەتی کوردستانە — مانای دەرفەت و ئازادی.",
-    "🏛️ شارۆچکەی ئەربیل یەکێکە لە کۆنترین شارێستانییەکانی دنیا.",
-    "🌹 گوڵی سوور ئەلامەتی هەژارانی کوردە، کە نیشانەی خەباتن.",
-    "📚 شاعیری ئەحمەدی خانی یەکێکی گەورەترین شاعیرانی کوردییە.",
-    "🎨 قالیچەی کوردی دەستکرد بەناوبانگی جیهانییەتی هەیە.",
+    "🏔️ کوردستان لانکەی شارستانیەتە؛ ئەشکەوتی شانەدەر نموونەی ژیانی نیاندەرتاڵەکانە.",
+    "🎵 مۆسیقای کوردی ڕەنگدانەوەی سروشت و بەسەرهاتی نەتەوەکەمانە، پڕە لە سۆز و جوانی.",
+    "🌿 زمانی کوردی لقێکی سەرەکییە لە خێزانی زمانە هیندە ئەورووپییەکان و دەوڵەمەندترینە.",
+    "🦅 سیمرخ لای کورد هێمای دانایی و نەمرییە، کە لە ئەفسانەکاندا ڕۆڵی پارێزەری هەیە.",
+    "🏛️ قەڵای هەولێر کۆنترین شوێنی نیشتەجێبوونی بەردەوامە لە جیهاندا.",
+    "🌹 گوڵی نێرگز هێمای بەهار و هیوا و سەربەرزیمانە.",
+    "📚 مەم و زین شاکارێکی ئەدەبیی کلاسیکی کوردییە کە ئەحمەدی خانی نووسیویەتی.",
+    "🎨 هونەری قاڵیچنین لە کوردستان مێژوویەکی دێرینی هەیە و جێی سەرنجی جیهانییانە.",
 ]
 
 # ── Keyboards ──────────────────────────────────────────────────────────────────
 MAIN_KEYBOARD = ReplyKeyboardMarkup(
-    [["🌿 ئامۆژگاری", "ℹ️ دەربارە"], ["🏓 پینگ", "❓ یارمەتی"]],
+    [["💎 زانیاریی دانسقە", "ℹ️ دەربارەی ژیرا"], ["لایەنی تەکنیکی ⚙️", "ڕێنمایی 📜"]],
     resize_keyboard=True,
     input_field_placeholder="پرسیارێک بنووسە...",
 )
@@ -41,38 +41,35 @@ MAIN_KEYBOARD = ReplyKeyboardMarkup(
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     user = update.effective_user
-    name = user.first_name if user else "هاوڕێ"
+    name = user.first_name if user else "ئازیز"
     msg = (
-        f"سڵاو {name}! 🌟\n\n"
-        f"*من ژیرام* — یاریدەرەی زیرەکی کوردی بە هێزی Gemini AI.\n\n"
-        f"دەتوانی هەر پرسیارێک بنووسیت — بەکوردی یان ئینگلیزی.\n"
-        f"بۆ فەرمانەکان: /help 📖"
+        f"سڵاو {name} گیان! 👋\n\n"
+        f"من **ژیرام** — ڕاوێژکارە زیرەکەکەت.\n"
+        f"خۆشحاڵم کە دەتبینم! ئامادەم بۆ وەڵامدانەوەی ھەر پرسیارێک کە لەلاتە.\n\n"
+        f"تکایە هەرچییەک دەتەوێت، بە کوردیی شیرین لێم بپرسە! ✨"
     )
     await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=MAIN_KEYBOARD)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     help_text = (
-        "📖 *فەرمانەکانی ژیرا*\n\n"
-        "/start — دەستپێک بکە\n"
-        "/help — ئەم لیستە\n"
-        "/fact — ئامۆژگاری کوردی\n"
-        "/about — دەربارەی ژیرا\n"
-        "/ping — چک بکە ئایا بوتەکە زیندووە\n\n"
-        "💬 *هەروەها:* هەر پرسیارێک بنووسە — ژیرا بە هێزی Gemini AI وەڵامت دەداتەوە!"
+        "📜 **ڕێنماییەکانی بەکارهێنان:**\n\n"
+        "دەتوانیت ڕاستەوخۆ پرسیارەکانت بنووسیت، یان ئەم فەرمانانە بەکاربهێنیت:\n"
+        "/start — دەستپێکردنەوە\n"
+        "/fact — زانیارییەکی سەرنجڕاکێش\n"
+        "/about — ناسینی ژیرا\n"
+        "/ping — دڵنیابوونەوە لە کارکردن\n\n"
+        "💬 **تێبینی:** من بە کوردی وەڵام دەدەمەوە، بەڵام دەتوانم بە ئینگلیزیش هاوکاریت بکەم!"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
 async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     about_text = (
-        "🌟 *دەربارەی ژیرا*\n\n"
-        "ژیرا کاراکتەرێکی زیرەکی کوردییە — ناوەکەیش لە زمانی کوردییەوە دێت و "
-        "مانای *زیرەکی* و *شارەزایی* دەدات.\n\n"
-        "🤖 *بە هێزی:* Google Gemini AI\n"
-        "🏔️ خوویەکی چیایی و بەئستایی دەیکات — وەک کۆیلەکانی کوردستان.\n"
-        "💬 وەڵام دەداتەوە بە کوردی سۆرانی و ئینگلیزی.\n\n"
-        "_دروستکراوە بە خۆشی و هەستی فەرهەنگی کوردی_ 🌹"
+        "ℹ️ **دەربارەی ژیرا**\n\n"
+        "من ژیرییەکی دەستکردی پێشکەوتووم، بۆ خزمەتکردنی زمانی کوردی دروستکراوم.\n"
+        "ئامانجم ئەوەیە وەڵامی پرسیارەکانت بە شێوەیەکی پوخت، ڕاست و کوردییەکی پەتی بدەمەوە.\n\n"
+        "هیوادارم سوودبەخش بم بۆت! 🌹"
     )
     await update.message.reply_text(about_text, parse_mode="Markdown")
 
@@ -80,21 +77,21 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
 async def fact_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     fact = random.choice(FACTS_KURDISH)
     await update.message.reply_text(
-        f"🌿 *ئامۆژگاری ژیرا*\n\n{fact}", parse_mode="Markdown"
+        f"💎 **زانیاریی دانسقە**:\n\n{fact}", parse_mode="Markdown"
     )
 
 
 async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    await update.message.reply_text("🟢 ژیرا زیندووە! Pong! 🏓")
+    await update.message.reply_text("⚙️ سیستەم بە تەواوی کار دەکات! (Pong)")
 
 
 # ── Keyboard button aliases ────────────────────────────────────────────────────
 
 BUTTON_MAP = {
-    "🌿 ئامۆژگاری": fact_command,
-    "ℹ️ دەربارە": about_command,
-    "🏓 پینگ": ping_command,
-    "❓ یارمەتی": help_command,
+    "💎 زانیاریی دانسقە": fact_command,
+    "ℹ️ دەربارەی ژیرا": about_command,
+    "لایەنی تەکنیکی ⚙️": ping_command,
+    "ڕێنمایی 📜": help_command,
 }
 
 
