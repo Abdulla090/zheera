@@ -1,3 +1,4 @@
+
 """
 ZHEERA Bot — Handlers
 Commands are answered instantly; all free-text goes through Gemini AI.
@@ -13,7 +14,7 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-from bot.ai import ask_zheera
+from bot.ai import ask_zheera, list_available_models
 
 logger = logging.getLogger("zheera.handlers")
 
@@ -58,6 +59,7 @@ async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
         "/start — دەستپێکردنەوە\n"
         "/fact — زانیارییەکی سەرنجڕاکێش\n"
         "/about — ناسینی ژیرا\n"
+        "/models — بینینی لیستی مۆدێلەکانی Gemini\n"
         "/ping — دڵنیابوونەوە لە کارکردن\n\n"
         "💬 **تێبینی:** من بە کوردی وەڵام دەدەمەوە، بەڵام دەتوانم بە ئینگلیزیش هاوکاریت بکەم!"
     )
@@ -72,6 +74,13 @@ async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> N
         "هیوادارم سوودبەخش بم بۆت! 🌹"
     )
     await update.message.reply_text(about_text, parse_mode="Markdown")
+
+
+async def models_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
+    """List all available Gemini models for this API key."""
+    await update.message.chat.send_action("typing")
+    response = await list_available_models()
+    await update.message.reply_text(response, parse_mode="Markdown")
 
 
 async def fact_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -125,6 +134,7 @@ def build_application(token: str) -> Application:
     app.add_handler(CommandHandler("about",  about_command))
     app.add_handler(CommandHandler("fact",   fact_command))
     app.add_handler(CommandHandler("ping",   ping_command))
+    app.add_handler(CommandHandler("models", models_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     return app

@@ -50,6 +50,31 @@ def _get_client() -> genai.Client:
     return _client
 
 
+async def list_available_models() -> str:
+    """
+    Query the API to find out which models are actually available to this key.
+    Returns a formatted string list.
+    """
+    client = _get_client()
+    if not client:
+        return "⚠️ API Key missing."
+
+    try:
+        # Paginator for listing models
+        model_list = []
+        for m in client.models.list(config={"page_size": 50}):
+            if "generateContent" in m.supported_generation_methods:
+                model_list.append(f"`{m.name}` ({m.display_name})")
+        
+        if not model_list:
+            return "⚠️ No models found with generateContent capability."
+            
+        return "📋 **Available Gemini Models:**\n\n" + "\n".join(model_list)
+    except Exception as e:
+        logger.error("Failed to list models: %s", e)
+        return f"⚠️ Error listing models: {e}"
+
+
 async def ask_zheera(user_message: str) -> str:
     """
     Send a message to Gemini and return the response text.
