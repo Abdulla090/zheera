@@ -1,9 +1,11 @@
 """
-ZHEERA Bot — Kurdish Intelligent Character 🌟
-Bot handlers: commands, messages, and personality responses.
+ZHEERA Bot — Handlers
+Commands are answered instantly; all free-text goes through Gemini AI.
 """
 
-from telegram import Update, BotCommand
+import random
+import logging
+from telegram import Update, ReplyKeyboardMarkup
 from telegram.ext import (
     Application,
     CommandHandler,
@@ -11,27 +13,11 @@ from telegram.ext import (
     ContextTypes,
     filters,
 )
-import random
+from bot.ai import ask_zheera
 
-# ── Personality Lines (Kurdish + English) ────────────────────────────────────
-GREETINGS = [
-    "سڵاو! 👋 من ژیرام، یاریدەرە زیرەکەکەت. چۆن دەتوانم یاریت بدەم؟",
-    "بەخێر بێیت! ✨ ژیرا ئێرەیە بۆ بەرپرسیاریتان. چ پرسیارێکت هەیە؟",
-    "هەڵۆ! 🌟 من ژیرام — زیرەکێکی کوردی. دەتوانم چۆن کومەکت بکەم؟",
-]
+logger = logging.getLogger("zheera.handlers")
 
-THINKING = [
-    "🤔 چکەلی تەمەن بەرپرسیارم ...",
-    "✨ ژیرا بیر دەکاتەوە ...",
-    "🧠 لە کارکردندایم ...",
-]
-
-UNKNOWN = [
-    "ببورە، ئەمە فامم نەبوو. 😅 تکایە دووبارە بکەوە یا /help بنووسە.",
-    "ئەمە لە دەرکەوتنی منەوە. 🤷 /help بنووسە بۆ تێگەشتن.",
-    "هنر نییە فامم کرد! تکایە جیاتر بسیارە. 💬",
-]
-
+# ── Static quick responses ─────────────────────────────────────────────────────
 FACTS_KURDISH = [
     "🏔️ کوردستان ناوچەیەکی شکۆداری چیاییە لە ڕۆژهەڵاتی ناوین.",
     "🎵 کوردەکان موسیقا و هونەری فولکلۆری بەئەندازەی زۆر بەئارام دەگرن.",
@@ -39,54 +25,59 @@ FACTS_KURDISH = [
     "🦅 هەڵۆی سیمرغ ئەلامەتی کوردستانە — مانای دەرفەت و ئازادی.",
     "🏛️ شارۆچکەی ئەربیل یەکێکە لە کۆنترین شارێستانییەکانی دنیا.",
     "🌹 گوڵی سوور ئەلامەتی هەژارانی کوردە، کە نیشانەی خەباتن.",
+    "📚 شاعیری ئەحمەدی خانی یەکێکی گەورەترین شاعیرانی کوردییە.",
+    "🎨 قالیچەی کوردی دەستکرد بەناوبانگی جیهانییەتی هەیە.",
 ]
 
+# ── Keyboards ──────────────────────────────────────────────────────────────────
+MAIN_KEYBOARD = ReplyKeyboardMarkup(
+    [["🌿 ئامۆژگاری", "ℹ️ دەربارە"], ["🏓 پینگ", "❓ یارمەتی"]],
+    resize_keyboard=True,
+    input_field_placeholder="پرسیارێک بنووسە...",
+)
 
-# ── Command Handlers ──────────────────────────────────────────────────────────
+
+# ── Commands ───────────────────────────────────────────────────────────────────
 
 async def start_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Welcome message with ZHEERA's Kurdish personality."""
     user = update.effective_user
     name = user.first_name if user else "هاوڕێ"
     msg = (
         f"سڵاو {name}! 🌟\n\n"
-        f"*من ژیرام* — یاریدەرەی زیرەکی کوردی.\n\n"
-        f"ئامادەم بۆ وەڵامدانەوەی پرسیارەکانت، گفتوگۆ، یان دانانی زانیاری.\n\n"
-        f"بۆ زانینی فەرمانەکان بنووسە /help 📖"
+        f"*من ژیرام* — یاریدەرەی زیرەکی کوردی بە هێزی Gemini AI.\n\n"
+        f"دەتوانی هەر پرسیارێک بنووسیت — بەکوردی یان ئینگلیزی.\n"
+        f"بۆ فەرمانەکان: /help 📖"
     )
-    await update.message.reply_text(msg, parse_mode="Markdown")
+    await update.message.reply_text(msg, parse_mode="Markdown", reply_markup=MAIN_KEYBOARD)
 
 
 async def help_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Show available commands."""
     help_text = (
         "📖 *فەرمانەکانی ژیرا*\n\n"
         "/start — دەستپێک بکە\n"
         "/help — ئەم لیستە\n"
-        "/fact — ئامۆژگاری کوردی بەکوردی\n"
+        "/fact — ئامۆژگاری کوردی\n"
         "/about — دەربارەی ژیرا\n"
         "/ping — چک بکە ئایا بوتەکە زیندووە\n\n"
-        "📩 هەروەها دەتوانی هەر پەیامێک بنێری — ژیرا وەڵامت دەداتەوە!"
+        "💬 *هەروەها:* هەر پرسیارێک بنووسە — ژیرا بە هێزی Gemini AI وەڵامت دەداتەوە!"
     )
     await update.message.reply_text(help_text, parse_mode="Markdown")
 
 
 async def about_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """ZHEERA's backstory."""
     about_text = (
         "🌟 *دەربارەی ژیرا*\n\n"
         "ژیرا کاراکتەرێکی زیرەکی کوردییە — ناوەکەیش لە زمانی کوردییەوە دێت و "
         "مانای *زیرەکی* و *شارەزایی* دەدات.\n\n"
+        "🤖 *بە هێزی:* Google Gemini AI\n"
         "🏔️ خوویەکی چیایی و بەئستایی دەیکات — وەک کۆیلەکانی کوردستان.\n"
-        "🤖 بە هەڵبژاردنی تەکنەلۆژیا و کولتووری کوردی تێکەڵ کراوە.\n"
-        "💬 ئامادەیە وەڵام بداتەوە بە کوردی و ئینگلیزی.\n\n"
+        "💬 وەڵام دەداتەوە بە کوردی سۆرانی و ئینگلیزی.\n\n"
         "_دروستکراوە بە خۆشی و هەستی فەرهەنگی کوردی_ 🌹"
     )
     await update.message.reply_text(about_text, parse_mode="Markdown")
 
 
 async def fact_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Share a random Kurdish fact."""
     fact = random.choice(FACTS_KURDISH)
     await update.message.reply_text(
         f"🌿 *ئامۆژگاری ژیرا*\n\n{fact}", parse_mode="Markdown"
@@ -94,60 +85,49 @@ async def fact_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> No
 
 
 async def ping_command(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Health check."""
     await update.message.reply_text("🟢 ژیرا زیندووە! Pong! 🏓")
 
 
-# ── Message Handler ───────────────────────────────────────────────────────────
+# ── Keyboard button aliases ────────────────────────────────────────────────────
 
-KEYWORD_RESPONSES: dict[str, str] = {
-    # Kurdish keywords
-    "سڵاو": random.choice(GREETINGS),
-    "باش": "خۆشحاڵم! 😊 چۆت دەیەوێت کومەکت بکەم؟",
-    "سپاس": "خوش بێ! 🙏 هەر کاتێک پرسیارت هەبوو ئێرەم.",
-    "کوردستان": "🏔️ کوردستان خاکی شکۆداری و فەرهەنگی بەرزە! چییەتی رایەکی تر؟",
-    "ژیرا": "بەڵێ دەمخوێنمەتەوە! 😄 چۆن دەتوانم یاریت بدەم؟",
-    # English keywords
-    "hello": random.choice(GREETINGS),
-    "hi": "Hey there! 👋 ZHEERA is here. How can I help you?",
-    "thanks": "You're welcome! 🙏 Ask me anything anytime.",
-    "help": "Type /help to see my commands 📖",
-    "kurdish": "🏔️ Kurdistan is a land of rich culture, ancient history, and resilient people!",
-    "zheera": "That's me! 🌟 How can I assist you today?",
-    "who are you": (
-        "I'm *ZHEERA* — a Kurdish intelligent character powered by AI. 🤖\n"
-        "Type /about to learn more about me!"
-    ),
+BUTTON_MAP = {
+    "🌿 ئامۆژگاری": fact_command,
+    "ℹ️ دەربارە": about_command,
+    "🏓 پینگ": ping_command,
+    "❓ یارمەتی": help_command,
 }
 
 
+# ── AI message handler ─────────────────────────────────────────────────────────
+
 async def handle_message(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
-    """Catch-all message handler with keyword matching."""
-    text = update.message.text or ""
-    lower = text.lower().strip()
+    """Route all free-text messages through Gemini AI with typing indicator."""
+    text = (update.message.text or "").strip()
 
-    # Check keyword map first
-    for keyword, response in KEYWORD_RESPONSES.items():
-        if keyword in lower:
-            await update.message.reply_text(response, parse_mode="Markdown")
-            return
+    # Handle keyboard buttons
+    if text in BUTTON_MAP:
+        await BUTTON_MAP[text](update, context)
+        return
 
-    # Fallback: thoughtful unknown response
-    await update.message.reply_text(random.choice(UNKNOWN))
+    # Show typing action while AI thinks
+    await update.message.chat.send_action("typing")
+
+    logger.info("📨 User message: %s", text[:80])
+    response = await ask_zheera(text)
+    await update.message.reply_text(response)
 
 
-# ── Application Builder ───────────────────────────────────────────────────────
+# ── Application builder ────────────────────────────────────────────────────────
 
 def build_application(token: str) -> Application:
-    """Build and configure the PTB Application (no polling — webhook mode)."""
+    """Build PTB Application in webhook mode (no polling)."""
     app = Application.builder().token(token).updater(None).build()
 
-    # Register handlers
-    app.add_handler(CommandHandler("start", start_command))
-    app.add_handler(CommandHandler("help", help_command))
-    app.add_handler(CommandHandler("about", about_command))
-    app.add_handler(CommandHandler("fact", fact_command))
-    app.add_handler(CommandHandler("ping", ping_command))
+    app.add_handler(CommandHandler("start",  start_command))
+    app.add_handler(CommandHandler("help",   help_command))
+    app.add_handler(CommandHandler("about",  about_command))
+    app.add_handler(CommandHandler("fact",   fact_command))
+    app.add_handler(CommandHandler("ping",   ping_command))
     app.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, handle_message))
 
     return app
